@@ -32,7 +32,7 @@ This Python script enables neural style transfer using the VGG19 neural network 
    python Style_Transfer.py
    ```
    The script will generate intermediate images during the optimization process and save them as `iteration_X.png`, where X is the iteration number.
-5. Once the optimization process is complete, the final stylized image will be displayed and saved as `final_image.png`.
+5. Once you feel that the total loss is converging, generate a keyboard exception to stop the program.
 
 ## Parameters
 - `CONTENT_IMG`: Path or URL of the content image.
