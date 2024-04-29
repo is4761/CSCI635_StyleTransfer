@@ -1,3 +1,12 @@
+################################################################
+# Style_Transfer.py
+# 
+# CSCI 635 group 6
+# 
+# This Python script enables neural style transfer using the VGG19 neural network architecture. 
+# It takes a content image and a style image as inputs and generates a new image 
+# that combines the content of the content image with the style of the style image.
+################################################################
 from PIL import Image
 from io import BytesIO
 from matplotlib import pyplot as plt
@@ -8,6 +17,16 @@ from torch import optim as optim
 import requests
 from torchvision import transforms, models
 
+# Constants
+CONTENT_IMG = 'images/octopus.jpg'
+STYLE_IMG = 'images/hockney.jpg'
+SHOW_EVERY = 5 # for displaying the target image, intermittently
+STEPS = 5000
+LEARNING_RATE = 0.003
+CONTENT_WEIGHT = 1  # alpha
+BETAS = [1e6]  # beta # switch with 1, 1e3, 1e6
+
+# Load the model
 vgg = models.vgg19(weights=True).features
 
 # freeze all VGG parameters since we're only optimizing the target image
@@ -17,11 +36,9 @@ for param in vgg.parameters():
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 vgg.to(device)
 
-CONTENT_IMG = 'images/octopus.jpg'
-STYLE_IMG = 'images/hockney.jpg'
 
 def load_image(img_path, max_size=400, shape=None):
-    # Load in and transform an image, making sure the image is <= 400 pixels in the x-y dims.
+    """Load in and preprocess the image, making sure the image is <= 400 pixels."""
     if "http" in img_path:
         response = requests.get(img_path)
         image = Image.open(BytesIO(response.content)).convert('RGB')
@@ -48,11 +65,6 @@ def load_image(img_path, max_size=400, shape=None):
 
     return image
 
-# load in content and style image
-content = load_image(CONTENT_IMG).to(device)
-style = load_image(STYLE_IMG, shape=content.shape[-2:]).to(device)
-
-
 def im_convert(tensor):
     """ Display a tensor as an image. """
     image = tensor.to("cpu").clone().detach()
@@ -63,25 +75,11 @@ def im_convert(tensor):
 
     return image
 
-
-# display the images
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
-# content and style ims side-by-side
-ax1.imshow(im_convert(content))
-ax2.imshow(im_convert(style))
-
-
 def get_features(image, model, layers=None):
     """ Run an image forward through a model and get the features for 
         a set of layers. Default layers are for VGGNet matching Gatys et al (2016)
     """
 
-    # Need the layers for the content and style representations of an image
-
-    # check after max pooling layers
-
-    # Complete mapping layer names of PyTorch's VGGNet to names from the paper
-    # outputs and corresponding layers
     if layers is None:
         layers = {'0': 'conv1_1',
                   '5': 'conv2_1',
@@ -92,7 +90,7 @@ def get_features(image, model, layers=None):
 
     features = {}
     x = image
-    # model._modules is a dictionary holding each module in the model
+    
     for name, layer in model._modules.items():
         x = layer(x)
         if name in layers:
@@ -118,6 +116,17 @@ def gram_matrix(tensor):
     return gram
 
 
+# load in content and style image
+content = load_image(CONTENT_IMG).to(device)
+style = load_image(STYLE_IMG, shape=content.shape[-2:]).to(device)
+
+# display the images
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
+
+# content and style ims side-by-side
+ax1.imshow(im_convert(content))
+ax2.imshow(im_convert(style))
+
 # get content and style features only once before forming the target image
 content_features = get_features(content, vgg)
 style_features = get_features(style, vgg)
@@ -126,8 +135,6 @@ style_features = get_features(style, vgg)
 style_grams = {layer: gram_matrix(style_features[layer]) for layer in
                style_features}  # dic to store layer name : gram matrix
 
-# it is a good idea to start off with the target as a copy of our *content* image
-# then iteratively change its style
 target = content.clone().requires_grad_(True).to(device)
 
 style_weights = {'conv1_1': 1.,
@@ -136,20 +143,11 @@ style_weights = {'conv1_1': 1.,
                  'conv4_1': 0.2,
                  'conv5_1': 0.2}
 
-# you may choose to leave these as is
-content_weight = 1  # alpha
-# switch with 1, 1e3, 1e6
-betas = [1e6]  # beta
-
-# for displaying the target image, intermittently
-show_every = 5
-
 # iteration hyperparameters
-optimizer = optim.Adam([target], lr=0.003)
+optimizer = optim.Adam([target], lr=LEARNING_RATE)
 steps = 5000  # decide how many iterations to update your image (5000)
 
-# extra
-for beta in betas:
+for beta in BETAS:
     total_loss = 1
     ii=1
     while total_loss > 0:
@@ -185,7 +183,7 @@ for beta in betas:
             style_loss += layer_style_loss / (d * h * w)
 
         # calculate the *total* loss
-        total_loss = content_weight * content_loss + beta * style_loss
+        total_loss = CONTENT_WEIGHT * content_loss + beta * style_loss
         if total_loss < 1:
             print('Total loss: ', total_loss.item())
             plt.imshow(im_convert(target))
@@ -199,7 +197,7 @@ for beta in betas:
         optimizer.step()
 
         # display intermediate images and print the loss
-        if ii % show_every == 0:
+        if ii % SHOW_EVERY == 0:
             print('Total loss: ', total_loss.item())
             plt.imshow(im_convert(target))
             plt.axis('off')
