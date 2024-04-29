@@ -20,7 +20,12 @@ This Python script enables neural style transfer using the VGG19 neural network 
    ```bash
    conda config --add channels conda-forge
    conda config --add channels pytorch
-   conda install matplotlib==3.6.2 numpy==1.26.4 Pillow==10.3.0 Requests==2.31.0 pytorch==2.2.2 torchvision==0.17.2
+   conda install matplotlib==3.6.2
+   conda install numpy==1.26.4
+   conda install Pillow==10.3.0
+   conda install Requests==2.31.0
+   conda install pytorch==2.2.2
+   conda install torchvision==0.17.2
    ```
 
 ## Usage
